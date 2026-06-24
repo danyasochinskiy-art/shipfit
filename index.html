@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#071018" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+<title>ShipFit v1.1.0 Supabase Prep RC</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="confetti" id="confetti"></div>
+<div class="offlineStatus" id="offlineStatus">Offline mode</div>
+
+<!-- LOGIN SCREEN -->
+<div class="loginScreen" id="loginScreen">
+  <div class="loginCard">
+    <div class="loginLogo">SF</div>
+    <h1>ShipFit</h1>
+    <p class="loginSub">Local mode now. Supabase sync ready.</p>
+
+    <div class="profileGrid">
+      <button class="profileBtn" onclick="loginLocalProfile('daniil','Daniil')">Daniil local</button>
+      <button class="profileBtn" onclick="loginLocalProfile('second','Second account')">Second local</button>
+    </div>
+
+    <div class="loginDivider">optional cloud sync</div>
+    <div class="trackerGrid">
+      <label>Supabase URL
+        <input data-supabase-url id="supabaseUrl" placeholder="https://xxxx.supabase.co" />
+      </label>
+      <label>Anon key
+        <input data-supabase-anon id="supabaseAnon" placeholder="anon public key" />
+      </label>
+      <label class="wide">Email for Magic Link
+        <input id="loginEmail" type="email" placeholder="daniil@example.com" autocomplete="email" />
+      </label>
+    </div>
+    <div class="ctaRow" style="justify-content:center;margin-top:12px">
+      <button class="secondary" onclick="saveSupabaseConfig()">Save config</button>
+      <button class="primary" onclick="sendMagicLink()">Send login link</button>
+    </div>
+    <div id="loginStatus" class="noteBox compact">Use Daniil or Second locally first. Supabase Magic Link can sync the active profile later.</div>
+    <p class="loginHint">Use a separate Supabase project only. Do not connect to CropMarine production.</p>
+  </div>
+</div>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">SF</div>
+      <div>
+        <h1>ShipFit</h1>
+        <p>Maersk Lamanai · v1.1.0 Supabase Prep</p>
+      </div>
+    </div>
+    <div class="topActions">
+      <button class="profileChip" id="profileChip" onclick="logoutProfile()">Daniil</button>
+      <button class="iconBtn langBtn" id="langToggle" onclick="toggleLanguage()">EN</button>
+      <button class="iconBtn" onclick="openSettings()">⚙️</button>
+    </div>
+  </div>
+
+  <!-- ── TODAY ──────────────────────────────────────────── -->
+  <section id="today" class="section active">
+    <div class="hero">
+      <div class="heroGrid">
+        <div>
+          <div class="statusRow">
+            <span class="pill accent" id="todayDate">Today</span>
+            <span class="pill sea" id="shipStatus">At sea</span>
+            <span class="pill good" id="phase">Phase</span>
+          </div>
+          <div id="dayStatusBanner" class="dayStatusBanner train">
+            <span id="dsBadge" class="dsBadge train">TRAIN</span>
+            <div id="dsTitle" class="dsTitle">Верх A</div>
+            <div id="dsSub" class="dsSub">65 мин · Масса верхней части тела</div>
+            <div id="dsReason" class="dsReason">At sea / нормальный день</div>
+          </div>
+          <div class="ctaRow" id="todayCTA">
+            <button class="primary" onclick="startWorkout()" id="btnStartWorkout">Start workout</button>
+            <button class="secondary" onclick="markDone()">✓ Done</button>
+          </div>
+          <!-- Quick action buttons — always visible -->
+          <div id="quickActions" class="quickBtns">
+            <button class="actionBtn warn" onclick="applySkip('too_tired')" id="btnTired">😴 Устал</button>
+            <button class="actionBtn" onclick="applySkip('move')" id="btnMove">📅 Перенести</button>
+            <button class="actionBtn danger" onclick="openSkipMenu()" id="btnSkip">✗ Пропустить</button>
+          </div>
+        </div>
+        <div class="ringWrap">
+          <div class="ring" id="weekRing" style="--p:0"><span id="weekPct">0%</span></div>
+          <div class="ringInfo">
+            <b id="weekDone">0 / 4</b>
+            <small>тренировки за неделю<br><span id="streakText">streak 0</span></small>
+          </div>
+        </div>
+      </div>
+      <div class="statsGrid">
+        <div class="stat"><div class="value" id="currentWeight">82</div><div class="label">кг сейчас</div></div>
+        <div class="stat"><div class="value" id="targetWeight">88</div><div class="label">цель кг</div></div>
+        <div class="stat"><div class="value" id="nextPort">—</div><div class="label">следующий порт</div></div>
+        <div class="stat"><div class="value">00–04</div><div class="label">вахта + 12–16</div></div>
+      </div>
+    </div>
+
+
+    <div class="card finalReleaseCard">
+      <div class="cardTitle"><div><h2>v1.0.1 Verification Hardened RC</h2><p>Release Candidate для тестовой выгрузки и ручной проверки без Supabase.</p></div></div>
+      <div class="noteBox compact okBox">Supabase и cloud sync отключены по стратегии. Сначала проверяем local/PWA работу, тренировку, прогресс, backup и mobile layout.</div>
+    </div>
+
+    <div class="card compactCard">
+      <div class="cardTitle"><div><h2>Local data safety</h2><p>Backup reminder and local app status.</p></div></div>
+      <div id="backupMiniStatus" class="noteBox compact">Backup status loading...</div>
+      <div class="ctaRow">
+        <button class="secondary" onclick="exportBackup()">Export backup</button>
+        <button class="ghost" onclick="runLocalHealthCheck()">Run QA check</button>
+        <button class="ghost" onclick="showSection('plan')">Открыть план</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Эта неделя</h2><p>Нажми на день для деталей и переноса.</p></div>
+      </div>
+      <div class="weekStrip" id="weekStrip"></div>
+      <!-- Week compliance summary -->
+      <div style="margin-top:14px">
+        <div class="weekCompliance" id="weekCompliance"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Итог последней тренировки</h2><p>Что было выполнено в последней тренировке.</p></div></div>
+      <div id="lastWorkoutSummary"></div>
+    </div>
+
+    <div id="todayWorkoutSection">
+      <div class="card" id="exerciseCard">
+        <div class="cardTitle">
+          <div><h2 id="exerciseCardTitle">Тренировка сегодня</h2><p id="workoutMeta">Упражнения и техника.</p></div>
+        </div>
+        <div id="exerciseList"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Питание и добавки</h2><p>Цель набора массы — 10k шагов у тебя есть.</p></div></div>
+      <div class="noteBox">💡 У тебя ~10k шагов/день. Кардио не нужно. Добавь углеводы: банан, йогурт, рис, творог.</div>
+      <div class="progressBars">
+        <div class="barRow"><span>Протеин</span><div class="bar"><span style="width:80%"></span></div><b>160 г</b></div>
+        <div class="barRow"><span>Вода</span><div class="bar"><span style="width:70%"></span></div><b>3 л</b></div>
+        <div class="barRow"><span>Креатин</span><div class="bar"><span style="width:100%"></span></div><b>3–5 г</b></div>
+      </div>
+      <div class="ctaRow">
+        <button class="secondary" onclick="toggleSupplement('creatine')">Creatine</button>
+        <button class="secondary" onclick="toggleSupplement('omega')">Omega-3</button>
+        <button class="secondary" onclick="toggleSupplement('multi')">Multi</button>
+        <button class="secondary" onclick="toggleSupplement('ashwa')">Ashwa</button>
+      </div>
+    </div>
+  
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Recovery check</h2><p>Sleep, fatigue, soreness and health note.</p></div></div>
+      <div class="trackerGrid">
+        <label>Sleep
+          <select id="recSleep"><option value="good">Good</option><option value="ok">OK</option><option value="bad">Bad</option></select>
+        </label>
+        <label>Fatigue
+          <select id="recFatigue"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+        </label>
+        <label>Soreness
+          <select id="recSoreness"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+        </label>
+        <label>Note
+          <input id="recNote" placeholder="shin pain, asthma, back, stress..." />
+        </label>
+      </div>
+      <div class="ctaRow">
+        <button class="primary" onclick="saveRecovery()">Save recovery</button>
+        <button class="secondary" onclick="applyRecoveryAdvice()">Apply advice</button>
+      </div>
+      <div id="recoveryAdvice" class="noteBox compact"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Nutrition tracker</h2><p>Protein, water, calories and supplements.</p></div></div>
+      <div class="trackerGrid">
+        <label>Protein, g
+          <input id="nutProtein" inputmode="decimal" placeholder="160" />
+        </label>
+        <label>Water, L
+          <input id="nutWater" inputmode="decimal" placeholder="3" />
+        </label>
+        <label>Calories
+          <select id="nutCalories"><option value="enough">Enough</option><option value="low">Low</option><option value="high">High</option></select>
+        </label>
+        <label>Food note
+          <input id="nutNote" placeholder="rice, eggs, yogurt, banana..." />
+        </label>
+      </div>
+      <div class="checkGrid">
+        <label><input type="checkbox" id="nutCreatine" /> Creatine</label>
+        <label><input type="checkbox" id="nutOmega" /> Omega-3</label>
+        <label><input type="checkbox" id="nutMulti" /> Multivitamin</label>
+        <label><input type="checkbox" id="nutAshwa" /> Ashwagandha</label>
+      </div>
+      <div class="ctaRow">
+        <button class="primary" onclick="saveNutrition()">Save nutrition</button>
+      </div>
+      <div id="nutritionSummary" class="noteBox compact"></div>
+    </div>
+
+  </section>
+
+  <!-- ── CALENDAR ────────────────────────────────────────── -->
+  <section id="calendar" class="section">
+
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Умный календарь</h2><p>Пропуски, портовые дни и переносы.</p></div>
+      </div>
+      <div class="ctaRow">
+        <button class="primary" onclick="autoRescheduleMissed()">Авто-перенос пропусков</button>
+        <button class="secondary" onclick="moveTodayWorkoutToNextAvailable()">Перенести сегодня</button>
+        <button class="secondary" onclick="renderMonth()">Обновить календарь</button>
+      </div>
+      <div id="calendarIntelligenceSummary" class="noteBox compact">If you miss a training day, ShipFit can move it to the next available non-port day and mark the original day as skipped.</div>
+    </div>
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Календарь рейса</h2><p>Тип дня, порты, переносы.</p></div>
+        <button class="secondary" onclick="goToday()">Сегодня</button>
+      </div>
+      <div class="statusRow" style="margin-bottom:8px">
+        <span class="pill" style="font-size:11px"><span style="color:#ffe29a">●</span> Train</span>
+        <span class="pill" style="font-size:11px"><span style="color:#6ee7b7">●</span> Optional</span>
+        <span class="pill" style="font-size:11px"><span style="color:#d6c9ff">●</span> Port</span>
+        <span class="pill" style="font-size:11px"><span style="color:#9eb3c7">●</span> Rest</span>
+      </div>
+      <div id="monthTitle" style="font-size:22px;font-weight:950;margin:12px 0 8px;display:flex;align-items:center;gap:10px"></div>
+      <div class="monthCal" id="monthHead"></div>
+      <div class="monthCal" id="monthCal"></div>
+    </div>
+    <div class="card">
+      <div class="cardTitle"><div><h2>Заходы в порты</h2><p>Расписание Maersk Lamanai.</p></div></div>
+      <div id="portList"></div>
+    </div>
+  </section>
+
+  <!-- ── WORKOUT ─────────────────────────────────────────── -->
+  <section id="workout" class="section">
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Workout mode</h2><p>Подходы, отдых, таймер.</p></div>
+        <button class="primary" onclick="startWorkout()">Start</button>
+      </div>
+      <div id="workoutPreview"></div>
+    </div>
+    <div class="card">
+      <div class="cardTitle"><div><h2>Exercise library</h2><p>Нажми для техники.</p></div></div>
+      <div id="library"></div>
+    </div>
+  </section>
+
+  <!-- ── PROGRESS ────────────────────────────────────────── -->
+  <section id="progress" class="section">
+    <div class="card">
+      <div class="cardTitle"><div><h2>Прогресс веса</h2><p>82 кг → цель 88 кг к 15 октября.</p></div></div>
+      <div class="inputRow">
+        <input id="weightInput" inputmode="decimal" placeholder="Вес сегодня, напр. 82.4" />
+        <button class="primary" onclick="saveWeight()">Сохранить</button>
+      </div>
+      <div id="weightChart" class="chartWrap"></div>
+      <div id="weightHistory"></div>
+    </div>
+    <div class="card">
+      <div class="cardTitle"><div><h2>Сила — топ сеты</h2><p>Записывай лучшие подходы.</p></div></div>
+      <div class="inputRow">
+        <input id="strengthInput" placeholder="Пример: DB press 24kg × 10" />
+        <button class="secondary" onclick="saveStrength()">Добавить</button>
+      </div>
+      <div id="strengthHistory"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Прогресс упражнений</h2><p>Последний рабочий вес, лучший подход и рекомендация.</p></div></div>
+      <div id="exerciseProgressDashboard"></div>
+    </div>
+
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Next workout intelligence</h2><p>Что делать на следующей тренировке.</p></div></div>
+      <div id="nextWorkoutIntelligence"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Weekly progress review</h2><p>Сеты, volume, consistency и recovery за последние 7 дней.</p></div></div>
+      <div id="weeklyProgressReview"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Progress insights</h2><p>Умные подсказки по весу, нагрузке и стабильности.</p></div></div>
+      <div id="progressInsights"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Backup / Restore / Cloud</h2><p>Защита истории тренировок.</p></div></div>
+      <div class="ctaRow">
+        <button class="primary" onclick="exportBackup()">Export JSON</button>
+        <label class="secondary fileBtn">Import JSON <input type="file" accept="application/json" onchange="importBackup(event)" /></label>
+      </div>
+      <div class="ctaRow">
+        <button class="secondary" onclick="syncToCloud()">Sync to Supabase</button>
+        <button class="secondary" onclick="pullFromCloud()">Pull from Supabase</button>
+      </div>
+      <div id="backupStatus" class="noteBox compact">No local backup exported yet.</div>
+      <div id="syncStatus" class="noteBox compact">Local mode. Supabase sync is optional.</div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Стабильность питания</h2><p>Белок, вода и креатин за последние 7 дней.</p></div></div>
+      <div id="nutritionWeeklySummary"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Итоги тренировок</h2><p>Последние завершённые тренировки.</p></div></div>
+      <div id="workoutSummaryHistory"></div>
+    </div>
+    <div class="card">
+      <div class="cardTitle"><div><h2>Compliance эта неделя</h2><p>Тренировки / пропуски / переносы.</p></div></div>
+      <div class="weekCompliance" id="progressCompliance"></div>
+    </div>
+  </section>
+
+
+  <!-- ── PLAN ────────────────────────────────────────────── -->
+  <section id="plan" class="section">
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Глобальный план продукта</h2><p>Один roadmap для local app, PWA, cloud и ежедневного использования.</p></div>
+      </div>
+      <div id="roadmapOverview"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Текущий milestone</h2><p>Что делаем до Supabase и hosting.</p></div>
+      </div>
+      <div id="currentMilestone"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Release gate</h2><p>Это нужно пройти перед Supabase и hosting.</p></div>
+      </div>
+      <div id="releaseGate"></div>
+    </div>
+
+
+
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Verification status</h2><p>Что реально проверено в этом RC.</p></div>
+      </div>
+      <div id="verificationStatusPanel" class="verificationStatusPanel"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Ручной QA тест</h2><p>Быстрая фиксация PASS / FAIL прямо в приложении.</p></div>
+      </div>
+      <div class="ctaRow">
+        <button class="primary" onclick="startManualQaSession()">Начать QA session</button>
+        <button class="secondary" onclick="exportManualQaReport()">Export QA report</button>
+        <button class="ghost" onclick="resetManualQaSession()">Reset QA</button>
+      </div>
+      <div id="manualQaPanel"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle">
+        <div><h2>Очередь следующих сборок</h2><p>Когда Roman пишет «продолжай», работаем по этой очереди.</p></div>
+      </div>
+      <div id="nextBuildQueue"></div>
+    </div>
+  </section>
+
+  <!-- ── SETTINGS ────────────────────────────────────────── -->
+  <section id="settings" class="section">
+    <div class="card">
+      <div class="cardTitle"><div><h2>Настройки</h2><p>Хранятся локально на телефоне.</p></div></div>
+      <label class="pill" style="margin:8px 0;display:block">Начальный вес</label>
+      <input id="setStartWeight" value="82" />
+      <br><br>
+      <label class="pill" style="margin:8px 0;display:block">Целевой вес</label>
+      <input id="setTargetWeight" value="88" />
+      <br><br>
+      <label class="pill" style="margin:8px 0;display:block">Тренировок в неделю</label>
+      <select id="setWeeklyTarget"><option>3</option><option selected>4</option><option>5</option></select>
+      <br><br>
+      <button class="primary" onclick="saveSettings()">Сохранить</button>
+      <button class="ghost" onclick="clearAll()" style="margin-left:8px">Очистить данные</button>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>PWA / offline</h2><p>Install app shell and cache local files.</p></div></div>
+      <div class="ctaRow">
+        <button class="primary" onclick="promptInstall()">Install app</button>
+        <button class="secondary" onclick="registerPwa(true)">Enable offline shell</button>
+        <button class="ghost" onclick="clearAppCache()">Clear app cache</button>
+      </div>
+      <div id="pwaStatus" class="noteBox compact">PWA status loading...</div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Local QA diagnostics</h2><p>Check storage, required UI, calendar and app shell.</p></div></div>
+      <div class="ctaRow">
+        <button class="primary" onclick="runLocalHealthCheck()">Run local QA check</button>
+        <button class="secondary" onclick="exportDiagnostics()">Export diagnostics</button>
+      </div>
+      <div id="qaStatusPanel" class="qaStatusPanel"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardTitle"><div><h2>Supabase cloud config</h2><p>Готово для отдельного Supabase проекта и Magic Link sync.</p></div></div>
+      <div class="trackerGrid">
+        <label>Supabase URL
+          <input data-supabase-url placeholder="https://xxxx.supabase.co" />
+        </label>
+        <label>Anon key
+          <input data-supabase-anon placeholder="anon public key" />
+        </label>
+        <label class="wide">Email for Magic Link
+          <input data-supabase-email id="settingsLoginEmail" type="email" placeholder="daniil@example.com" autocomplete="email" />
+        </label>
+      </div>
+      <div class="ctaRow">
+        <button class="secondary" onclick="saveSupabaseConfig()">Save Supabase config</button>
+        <button class="primary" onclick="sendMagicLink()">Send Magic Link</button>
+        <button class="secondary" onclick="syncToCloud()">Sync active profile</button>
+        <button class="ghost" onclick="pullFromCloud()">Pull active profile</button>
+      </div>
+      <div class="noteBox compact">Supabase готов к настройке. Используй отдельный проект, не CropMarine production.</div>
+    </div>
+    <div class="card">
+      <div class="cardTitle"><div><h2>Добавки</h2><p>Не является медицинской рекомендацией.</p></div></div>
+      <div class="infoGrid">
+        <div class="infoBox"><b>Omega-3 1000 мг</b>Принимать с едой, содержащей жиры.</div>
+        <div class="infoBox"><b>Мультивитамин</b>1 порция согласно инструкции с едой.</div>
+        <div class="infoBox"><b>Креатин 3–5 г</b>Каждый день, в том числе в дни отдыха.</div>
+        <div class="infoBox"><b>Ашваганда 375 мг</b>Вечером. Прекратить при симптомах со стороны печени/щитовидки.</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="active" data-tab="today" onclick="showSection('today')"><span>🏠</span>Сегодня</button>
+  <button data-tab="calendar" onclick="showSection('calendar')"><span>📅</span>Календарь</button>
+  <button data-tab="workout" onclick="showSection('workout')"><span>🏋️</span>Зал</button>
+  <button data-tab="progress" onclick="showSection('progress')"><span>📈</span>Прогресс</button>
+  <button data-tab="plan" onclick="showSection('plan')"><span>🧭</span>План</button>
+  <button data-tab="settings" onclick="showSection('settings')"><span>⚙️</span>Настройки</button>
+</nav>
+
+<!-- WORKOUT MODAL -->
+<div class="modal" id="workoutModal">
+  <div class="sheet workoutSheet">
+    <div class="cardTitle workoutTitleBar">
+      <div><h2 id="modalTitle">Тренировка</h2><p id="modalSub">Один экран = одно упражнение и один сет.</p></div>
+      <button class="ghost" onclick="closeWorkout()">Закрыть</button>
+    </div>
+
+    <div class="workoutProgressHero" id="workoutProgressHero"></div>
+
+    <div class="timerBox">
+      <div class="timerLabel" id="timerLabel">Rest timer</div>
+      <div class="timer" id="timer">Ready</div>
+      <div class="ctaRow timerControls">
+        <button class="primary" onclick="startRest(90)">90s</button>
+        <button class="secondary" onclick="startRest(60)">60s</button>
+        <button class="secondary" onclick="startRest(120)">120s</button>
+        <button class="ghost" onclick="stopRest()">Stop</button>
+      </div>
+    </div>
+
+    <div id="focusWorkoutPanel"></div>
+    <div id="workoutCompletionPanel"></div>
+
+    <details class="allSetsDetails">
+      <summary>Все упражнения и сохранённые подходы</summary>
+      <div id="modalExercises"></div>
+    </details>
+
+    <div id="finishSummaryPreview" class="noteBox compact"></div>
+    <div class="ctaRow finishRow">
+      <button class="primary" onclick="finishWorkout()">Завершить тренировку</button>
+      <button class="ghost" onclick="closeWorkout()">Пауза / закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- DAY DETAIL MODAL -->
+<div class="dayModal" id="dayModal">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+      <div>
+        <div class="dayModalTitle" id="dayModalTitle">Понедельник</div>
+        <div class="dayModalSub" id="dayModalSub">22.06.2026</div>
+      </div>
+      <button class="ghost" onclick="closeDayModal()">✕</button>
+    </div>
+    <div id="dayModalBanner"></div>
+    <div id="dayModalContent"></div>
+    <div id="dayModalActions"></div>
+    <div id="dayModalExercises"></div>
+  </div>
+</div>
+
+<!-- SKIP MENU MODAL -->
+<div class="dayModal" id="skipModal">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div>
+        <div class="dayModalTitle">Что делать сегодня?</div>
+        <div class="dayModalSub">Выбери причину, чтобы обновить план.</div>
+      </div>
+      <button class="ghost" onclick="closeSkipModal()">✕</button>
+    </div>
+    <div class="skipReasons">
+      <div class="reasonBtn" onclick="applySkip('too_tired')">😴 Очень устал</div>
+      <div class="reasonBtn" onclick="applySkip('bad_sleep')">🌙 Плохой сон</div>
+      <div class="reasonBtn" onclick="applySkip('port_day')">⚓ Портовый день</div>
+      <div class="reasonBtn" onclick="applySkip('legs_sore')">🦵 Болят ноги</div>
+      <div class="reasonBtn" onclick="applySkip('move')">📅 Перенести на завтра</div>
+      <div class="reasonBtn" onclick="applySkip('skip')">✗ Пропустить</div>
+    </div>
+    <div id="skipAdvice" style="display:none" class="noteBox"></div>
+  </div>
+</div>
+
+<!-- READINESS CHECK MODAL -->
+<div class="dayModal" id="readinessModal">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div><div class="dayModalTitle">Готовность к тренировке</div><div class="dayModalSub">4 быстрых вопроса</div></div>
+      <button class="ghost" onclick="closeReadiness()">✕</button>
+    </div>
+    <div class="readProgress"><b id="readBar" style="width:0%"></b></div>
+    <div id="readinessContent"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="js/app.js" defer></script>
+</body>
+</html>
